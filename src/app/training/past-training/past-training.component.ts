@@ -35,6 +35,7 @@ export class PastTrainingComponent implements OnInit, AfterViewInit, OnDestroy {
   constructor(private trainingService: TrainingService) {}
 
   ngOnInit(): void {
+    console.log('holi');
     this.ExChangedSubs =
       this.trainingService.finishedExercisesChanged.subscribe(
         (exercises: Exercise[]) => (this.dataSource.data = exercises)
@@ -53,5 +54,6 @@ export class PastTrainingComponent implements OnInit, AfterViewInit, OnDestroy {
 
   ngOnDestroy() {
     this.ExChangedSubs.unsubscribe();
+    this.trainingService.cancelSubscriptions();
   }
 }

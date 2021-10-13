@@ -4,7 +4,7 @@
       <mat-card-title fxLayoutAlign="center"
         >Time to start a workout!</mat-card-title
       >
-      <mat-card-content fxLayoutAlign="center">
+      <mat-card-content fxLayout="column" fxLayoutAlign="center center">
         <mat-form-field *ngIf="!isLoading && exercises" appearance="fill">
           <mat-select
             placeholder="Choose an exercise"
@@ -12,17 +12,23 @@
             name="exercise"
             required
           >
-            <mat-option *ngFor="let item of exercises" [value]="item.id">{{
+            <mat-option *ngFor="let item of exercises" [value]="item">{{
               item.name
             }}</mat-option>
           </mat-select>
         </mat-form-field>
+        <img
+          style="max-width: 250px"
+          *ngIf="f.value.exercise"
+          [src]="f.value.exercise.url"
+          alt=""
+        />
         <mat-spinner *ngIf="isLoading"></mat-spinner>
       </mat-card-content>
       <mat-card-actions *ngIf="!isLoading" fxLayoutAlign="center"
         ><button
           *ngIf="exercises"
-          mat-button
+          mat-raised-button
           type="submit"
           [disabled]="f.invalid"
         >

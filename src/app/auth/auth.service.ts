@@ -22,6 +22,7 @@ export class AuthService {
   initAuthListener() {
     this.afAuth.authState.subscribe((user) => {
       if (user) {
+        this.trainingService.userId = user.uid;
         this.authSuccessfully();
       } else {
         this.trainingService.cancelSubscriptions();
@@ -55,6 +56,7 @@ export class AuthService {
   }
 
   logout() {
+    this.trainingService.userId = null;
     this.afAuth.signOut();
   }
 

@@ -1,6 +1,7 @@
 import { Injectable } from '@angular/core';
+import { AngularFireAuth } from '@angular/fire/compat/auth';
 import { AngularFirestore } from '@angular/fire/compat/firestore';
-import { Subject, Subscription } from 'rxjs';
+import { Subject } from 'rxjs';
 import { debounceTime, map, takeUntil } from 'rxjs/operators';
 import { UIService } from '../shared/ui.service';
 import { Exercise } from './exercise.model';
@@ -11,13 +12,14 @@ export class TrainingService {
   exercisesChanged: Subject<Exercise[]> = new Subject();
   finishedExercisesChanged: Subject<Exercise[]> = new Subject();
   private availableExercises: Exercise[] = [];
-
+  public userId;
   private runningExercise: Exercise;
   private unsubscribe: Subject<void> = new Subject();
 
   constructor(
     private readonly db: AngularFirestore,
-    private uiService: UIService
+    private uiService: UIService,
+    private afAuth: AngularFireAuth
   ) {}
   fetchAvailableExercises() {
     this.uiService.loadingStateChanged.next(true);
@@ -33,6 +35,7 @@ export class TrainingService {
               name: doc.payload.doc.data()['name'],
               calories: doc.payload.doc.data()['calories'],
               duration: doc.payload.doc.data()['duration'],
+              url: doc.payload.doc.data()['url'],
             };
           })
         )
@@ -67,6 +70,7 @@ export class TrainingService {
       ...this.runningExercise,
       date: new Date(),
       state: 'completed',
+      userId: this.userId,
     });
     this.runningExercise = null;
     this.exerciseChanged.next(null);
@@ -79,6 +83,7 @@ export class TrainingService {
       calories: this.runningExercise.calories * (progress / 100),
       date: new Date(),
       state: 'cancelled',
+      userId: this.userId,
     });
     this.runningExercise = null;
     this.exerciseChanged.next(null);
@@ -89,7 +94,9 @@ export class TrainingService {
     console.log('hola desde fetchcomplete');
     // if (!this.fbSubs) {
     this.db
-      .collection('finishedExercises')
+      .collection('finishedExercises', (ref) =>
+        ref.where('userId', '==', this.userId)
+      )
       .valueChanges()
       // .pipe(debounceTime(500))
       .pipe(takeUntil(this.unsubscribe))
@@ -111,5 +118,6 @@ export class TrainingService {
   cancelSubscriptions() {
     this.unsubscribe.next();
     this.unsubscribe.complete();
+    console.log('desuscribiendooo');
   }
 }
