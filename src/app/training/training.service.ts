@@ -1,7 +1,8 @@
 import { Injectable } from '@angular/core';
 import { AngularFirestore } from '@angular/fire/compat/firestore';
 import { Subject, Subscription } from 'rxjs';
-import { debounceTime, map } from 'rxjs/operators';
+import { debounceTime, map, takeUntil } from 'rxjs/operators';
+import { UIService } from '../shared/ui.service';
 import { Exercise } from './exercise.model';
 
 @Injectable({ providedIn: 'root' })
@@ -12,15 +13,19 @@ export class TrainingService {
   private availableExercises: Exercise[] = [];
 
   private runningExercise: Exercise;
-  private exercises: Exercise[] = [];
-  fbSubs: Subscription;
+  private unsubscribe: Subject<void> = new Subject();
 
-  constructor(private readonly db: AngularFirestore) {}
+  constructor(
+    private readonly db: AngularFirestore,
+    private uiService: UIService
+  ) {}
   fetchAvailableExercises() {
+    this.uiService.loadingStateChanged.next(true);
     this.db
       .collection('available exercises')
       .snapshotChanges()
       .pipe(
+        takeUntil(this.unsubscribe),
         map((docArray) =>
           docArray.map((doc) => {
             return {
@@ -32,10 +37,22 @@ export class TrainingService {
           })
         )
       )
-      .subscribe((exercises: Exercise[]) => {
-        this.availableExercises = exercises;
-        this.exercisesChanged.next([...this.availableExercises]);
-      });
+      .subscribe(
+        (exercises: Exercise[]) => {
+          this.uiService.loadingStateChanged.next(false);
+          this.availableExercises = exercises;
+          this.exercisesChanged.next([...this.availableExercises]);
+        },
+        (error) => {
+          this.uiService.loadingStateChanged.next(false);
+          this.uiService.showSnackbar(
+            'Fetching Exercises failed, please try again later',
+            null,
+            3000
+          );
+          this.exercisesChanged.next(null);
+        }
+      );
   }
 
   startExercise(selectedId: string) {
@@ -68,17 +85,19 @@ export class TrainingService {
   }
 
   fetchCompletedOrCancelledExercises() {
+    //TODO arreglar la acumulacion de subscripciones
     console.log('hola desde fetchcomplete');
-    if (!this.fbSubs) {
-      this.fbSubs = this.db
-        .collection('finishedExercises')
-        .valueChanges()
-        // .pipe(debounceTime(500))
-        .subscribe((exercises: Exercise[]) => {
-          console.log('hola desde fetchcomplete subs');
-          this.finishedExercisesChanged.next(exercises);
-        });
-    }
+    // if (!this.fbSubs) {
+    this.db
+      .collection('finishedExercises')
+      .valueChanges()
+      // .pipe(debounceTime(500))
+      .pipe(takeUntil(this.unsubscribe))
+      .subscribe((exercises: Exercise[]) => {
+        console.log('hola desde fetchcomplete subs');
+        this.finishedExercisesChanged.next(exercises);
+      });
+    // }
   }
 
   getRunningExercise() {
@@ -89,7 +108,8 @@ export class TrainingService {
     this.db.collection('finishedExercises').add(exercise);
   }
 
-  //   cancelSubscriptions() {
-  //     this.fbSubs.forEach((sub) => sub.unsubscribe());
-  //   }
+  cancelSubscriptions() {
+    this.unsubscribe.next();
+    this.unsubscribe.complete();
+  }
 }
