@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core';
 import { AngularFireAuth } from '@angular/fire/compat/auth';
 import { AngularFirestore } from '@angular/fire/compat/firestore';
-import { Subject } from 'rxjs';
+import { Subject, Subscription } from 'rxjs';
 import { debounceTime, map, takeUntil } from 'rxjs/operators';
 import { UIService } from '../shared/ui.service';
 import { Exercise } from './exercise.model';
@@ -15,6 +15,7 @@ export class TrainingService {
   public userId;
   private runningExercise: Exercise;
   private unsubscribe: Subject<void> = new Subject();
+  private Subs: Subscription[] = [];
 
   constructor(
     private readonly db: AngularFirestore,
@@ -90,21 +91,16 @@ export class TrainingService {
   }
 
   fetchCompletedOrCancelledExercises() {
-    //TODO arreglar la acumulacion de subscripciones
-    console.log('hola desde fetchcomplete');
-    // if (!this.fbSubs) {
-    this.db
-      .collection('finishedExercises', (ref) =>
-        ref.where('userId', '==', this.userId)
-      )
-      .valueChanges()
-      // .pipe(debounceTime(500))
-      .pipe(takeUntil(this.unsubscribe))
-      .subscribe((exercises: Exercise[]) => {
-        console.log('hola desde fetchcomplete subs');
-        this.finishedExercisesChanged.next(exercises);
-      });
-    // }
+    this.Subs.push(
+      this.db
+        .collection('finishedExercises', (ref) =>
+          ref.where('userId', '==', this.userId)
+        )
+        .valueChanges()
+        .subscribe((exercises: Exercise[]) => {
+          this.finishedExercisesChanged.next(exercises);
+        })
+    );
   }
 
   getRunningExercise() {
@@ -118,6 +114,6 @@ export class TrainingService {
   cancelSubscriptions() {
     this.unsubscribe.next();
     this.unsubscribe.complete();
-    console.log('desuscribiendooo');
+    this.Subs.forEach((x) => x.unsubscribe());
   }
 }
